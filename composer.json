@@ -1,0 +1,26 @@
+{
+    "name": "adrosoftware/laravel-data-proxy-boost",
+    "description": "Laravel Boost guidelines and skills for adrosoftware/laravel-data-proxy",
+    "keywords": ["laravel", "boost", "ai", "data-proxy", "guidelines", "skills"],
+    "license": "MIT",
+    "type": "library",
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0"
+    },
+    "suggest": {
+        "adrosoftware/laravel-data-proxy": "^0.1 - The package these guidelines are for"
+    },
+    "autoload": {
+        "psr-4": {
+            "AdroSoftware\\DataProxyBoost\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "AdroSoftware\\DataProxyBoost\\DataProxyBoostServiceProvider"
+            ]
+        }
+    }
+}

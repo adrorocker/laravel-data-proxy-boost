@@ -32,7 +32,8 @@ app/
 
 ### Data Class Pattern
 
-```php
+@verbatim
+<code-snippet name="Basic data class pattern" lang="php">
 namespace App\Data;
 
 use AdroSoftware\DataProxy\DataProxy;
@@ -69,7 +70,8 @@ class DashboardData
             ->limit(5);
     }
 }
-```
+</code-snippet>
+@endverbatim
 
 ### Best Practices
 

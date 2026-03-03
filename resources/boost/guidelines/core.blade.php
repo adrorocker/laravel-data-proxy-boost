@@ -81,6 +81,40 @@ class DashboardData
 - Use `cache()` for expensive queries
 - Return `Result` from data classes
 
+### Hydration (Post-Query Batch Loading)
+
+Use `hydrate()` to batch-load additional data after pagination queries execute. This is useful for loading data that can't be eager-loaded (external APIs, complex aggregates, cross-database data).
+
+@verbatim
+<code-snippet name="Hydration pattern" lang="php">
+// In your Shape definition
+Shape::make()
+    ->select('id', 'title', 'author_id')
+    ->hydrate(function ($items, $resolved) {
+        // $items = Collection of paginated results
+        // $resolved = all resolved requirements
+
+        // Batch load external data
+        $authorIds = $items->pluck('author_id')->unique();
+        $avatars = ExternalAvatarService::batchGet($authorIds);
+
+        // Mutate items in place
+        $items->each(fn ($item) => $item->avatar_url = $avatars[$item->author_id] ?? null);
+    });
+</code-snippet>
+@endverbatim
+
+**When to use hydrate:**
+- Loading data from external APIs (batch API calls)
+- Cross-database lookups
+- Complex aggregates not supported by eager loading
+- Data that depends on the paginated result set
+
+**When NOT to use hydrate:**
+- Simple relation loading (use `with()` instead)
+- Data available via eager loading
+- Single-record lookups (no batching benefit)
+
 ### Anti-Patterns
 
 - Don't use DataProxy for single simple queries

@@ -105,3 +105,56 @@ Requirements::make()
             ->when($search, fn($s) => $s->where('name', 'like', "%{$search}%"))
     )
 ```
+
+## Batch Loading with Hydrate
+
+Use `hydrate()` to batch-load additional data after pagination executes. Perfect for external API calls, cross-database lookups, or complex aggregates.
+
+### Loading Related Counts
+
+```php
+private static function shape(?string $search, string $sortBy, string $sortDir): Shape
+{
+    return Shape::make()
+        ->select('id', 'name', 'email', 'created_at')
+        ->when($search, fn($s) => $s->where('name', 'like', "%{$search}%"))
+        ->orderBy($sortBy, $sortDir)
+        ->hydrate(function ($items, $resolved) {
+            // Batch load order counts
+            $userIds = $items->pluck('id');
+            $counts = Order::whereIn('user_id', $userIds)
+                ->groupBy('user_id')
+                ->selectRaw('user_id, count(*) as count')
+                ->pluck('count', 'user_id');
+
+            $items->each(fn ($user) => $user->order_count = $counts[$user->id] ?? 0);
+        });
+}
+```
+
+### Loading External Data
+
+```php
+->hydrate(function ($items, $resolved) {
+    // Batch fetch from external service
+    $emails = $items->pluck('email')->toArray();
+    $gravatars = GravatarService::batchLookup($emails);
+
+    $items->each(fn ($user) => $user->gravatar_url = $gravatars[$user->email] ?? null);
+})
+```
+
+### Using Resolved Data
+
+```php
+->hydrate(function ($items, $resolved) {
+    // Access other resolved requirements
+    $settings = $resolved['companySettings'];
+
+    $items->each(function ($user) use ($settings) {
+        $user->display_name = $settings->show_full_name
+            ? $user->name
+            : $user->initials;
+    });
+})
+```

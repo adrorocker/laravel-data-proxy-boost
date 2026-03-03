@@ -134,3 +134,73 @@ class FeedComponent extends Component
     }
 }
 ```
+
+## Batch Loading with Hydrate
+
+Use `hydrate()` to batch-load additional data for feed items after the query executes. Ideal for like counts, user interactions, or external data.
+
+### Loading Engagement Metrics
+
+```php
+private static function shape(int $limit, ?int $afterId): Shape
+{
+    return Shape::make()
+        ->select('id', 'title', 'excerpt', 'created_at')
+        ->with('author', Shape::make()->select('id', 'name', 'avatar'))
+        ->when($afterId, fn($s) => $s->where('id', '<', $afterId))
+        ->latest()
+        ->limit($limit)
+        ->hydrate(function ($items, $resolved) {
+            // Batch load like counts
+            $postIds = $items->pluck('id');
+            $likeCounts = Like::whereIn('post_id', $postIds)
+                ->groupBy('post_id')
+                ->selectRaw('post_id, count(*) as count')
+                ->pluck('count', 'post_id');
+
+            $items->each(fn ($post) => $post->like_count = $likeCounts[$post->id] ?? 0);
+        });
+}
+```
+
+### Loading User Interactions
+
+```php
+->hydrate(function ($items, $resolved) {
+    $currentUserId = auth()->id();
+    $postIds = $items->pluck('id');
+
+    // Batch check if current user liked each post
+    $userLikes = Like::where('user_id', $currentUserId)
+        ->whereIn('post_id', $postIds)
+        ->pluck('post_id')
+        ->flip();
+
+    // Batch check bookmarks
+    $userBookmarks = Bookmark::where('user_id', $currentUserId)
+        ->whereIn('post_id', $postIds)
+        ->pluck('post_id')
+        ->flip();
+
+    $items->each(function ($post) use ($userLikes, $userBookmarks) {
+        $post->is_liked = isset($userLikes[$post->id]);
+        $post->is_bookmarked = isset($userBookmarks[$post->id]);
+    });
+})
+```
+
+### Loading External API Data
+
+```php
+->hydrate(function ($items, $resolved) {
+    // Batch fetch preview images from external service
+    $urls = $items->pluck('external_url')->filter()->toArray();
+    $previews = LinkPreviewService::batchFetch($urls);
+
+    $items->each(function ($post) use ($previews) {
+        if ($post->external_url) {
+            $post->preview_image = $previews[$post->external_url] ?? null;
+        }
+    });
+})
+```

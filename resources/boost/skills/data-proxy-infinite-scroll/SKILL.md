@@ -78,6 +78,39 @@ On button click or scroll:
 
 Always use consistent ordering (e.g., `id DESC`) to prevent duplicates when new items are added.
 
+## Composable Filtering with Multiple Scopes
+
+Use multiple `scope()` calls for composable feed filtering. Scopes accumulate and are applied in order:
+
+```php
+private static function shape(
+    int $limit,
+    ?int $afterId,
+    ?User $viewer,
+    array $excludeIds = []
+): Shape {
+    return Shape::make()
+        ->select('id', 'title', 'excerpt', 'created_at')
+        ->with('author', Shape::make()->select('id', 'name', 'avatar'))
+        // Base scope - aggregates
+        ->scope(fn($query) => $query->withCount('likes'))
+        // Visibility scope - filter based on viewer permissions
+        ->scope(fn($query) => $query->listableFor($viewer))
+        // Cursor-based pagination scope
+        ->when($afterId, fn($s) => $s->scope(
+            fn($query) => $query->where('id', '<', $afterId)
+        ))
+        // Exclusion scope - hide already-seen items
+        ->when(!empty($excludeIds), fn($s) => $s->scope(
+            fn($query) => $query->whereNotIn('id', $excludeIds)
+        ))
+        ->orderByDesc('id')
+        ->limit($limit);
+}
+```
+
+This pattern keeps each concern (aggregates, visibility, pagination, exclusions) in its own scope, making the code easier to understand and maintain.
+
 ## Timeline Feed Example
 
 ```php

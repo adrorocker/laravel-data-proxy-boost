@@ -73,6 +73,31 @@ class DashboardData
 </code-snippet>
 @endverbatim
 
+### Custom Query Scopes
+
+Use `scope()` to apply custom query modifications. Multiple scopes accumulate and are applied in order:
+
+@verbatim
+<code-snippet name="Multiple scopes pattern" lang="php">
+Shape::make()
+    // First scope - add aggregates
+    ->scope(fn($query) => $query->withCount('likes'))
+
+    // Second scope - add visibility constraints
+    ->scope(fn($query, $resolved) => $query->whereIn('author_id', $resolved['followedIds']))
+
+    // Conditional scope using when()
+    ->when($excludeIds, fn($shape) => $shape->scope(
+        fn($query) => $query->whereNotIn('id', $excludeIds)
+    ))
+</code-snippet>
+@endverbatim
+
+**Key points:**
+- Scopes receive `($query, $resolved)` where `$resolved` contains all previously resolved requirements
+- Multiple `scope()` calls accumulate (they don't overwrite each other)
+- Use `getScopes()` to inspect all scopes, `clearScopes()` to remove them
+
 ### Best Practices
 
 - Create dedicated data classes in `app/Data/`
@@ -80,6 +105,7 @@ class DashboardData
 - Leverage `compute()` for derived values
 - Use `cache()` for expensive queries
 - Return `Result` from data classes
+- Use multiple `scope()` calls for composable query logic
 
 ### Hydration (Post-Query Batch Loading)
 

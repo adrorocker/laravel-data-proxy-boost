@@ -53,6 +53,29 @@ Access props directly: `props.user`, `props.posts`
 - Use `select()` to limit fields sent to frontend
 - Use `compute()` for formatted/display values
 - Use `asArray()` when you don't need model methods
+- Use multiple `scope()` calls for composable query logic
+
+## Using Multiple Scopes
+
+Scopes accumulate, making them ideal for composable queries:
+
+```php
+private static function postsShape(?User $viewer, ?int $excludeId = null): Shape
+{
+    return Shape::make()
+        ->select('id', 'title', 'excerpt', 'published_at')
+        // Base scope - always applied
+        ->scope(fn($query) => $query->withCount('likes'))
+        // Visibility scope
+        ->scope(fn($query) => $query->listableFor($viewer))
+        // Conditional exclusion scope
+        ->when($excludeId, fn($shape) => $shape->scope(
+            fn($query) => $query->where('id', '!=', $excludeId)
+        ))
+        ->latest()
+        ->limit(10);
+}
+```
 
 ## Complete Example
 

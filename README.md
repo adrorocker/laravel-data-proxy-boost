@@ -14,9 +14,10 @@ The package will be auto-discovered by Laravel.
 
 ## Requirements
 
-- PHP 8.2+
-- Laravel 11.0 or 12.0
+- PHP 8.2+ (PHP 8.3+ for Laravel 13)
+- Laravel 11, 12, or 13
 - Laravel Boost
+- `adrosoftware/laravel-data-proxy` ^0.5 (in your application)
 
 ## What's Included
 

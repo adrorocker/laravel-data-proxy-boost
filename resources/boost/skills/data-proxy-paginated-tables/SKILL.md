@@ -94,6 +94,8 @@ Requirements::make()
     ->count('pendingCount', User::class, Shape::make()->where('status', 'pending'))
 ```
 
+> **Performance note:** As of `adrosoftware/laravel-data-proxy` 0.5.0, aggregates of the same model are grouped by constraint signature. The example above runs **3 queries** (one per distinct constraint set: empty, `status=active`, `status=pending`) — not one per aggregate. If two of these `count()` calls shared the same `where` clause they would collapse into a single `SELECT`.
+
 ## Bulk Selection Support
 
 ```php

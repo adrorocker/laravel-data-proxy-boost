@@ -141,9 +141,61 @@ Shape::make()
 - Data available via eager loading
 - Single-record lookups (no batching benefit)
 
+### Deferred Values (Closures Only)
+
+When a constraint value depends on data resolved earlier in the same request, pass a `Closure` (or invokable object). **Plain strings or `[Class, 'method']` arrays are not invoked** — they are treated as literal constraint values. This avoids accidental invocation of helper functions like `old()`, `auth()`, or `request()` whose names happen to coincide with a string constraint value.
+
+@verbatim
+<code-snippet name="Deferred constraint values" lang="php">
+// ✅ Closure — invoked once with the current $resolved state
+Shape::make()->where('age', '>=', fn($resolved) => $resolved['minAge']);
+
+// ✅ Literal value
+Shape::make()->where('status', 'old');
+
+// ❌ Don't pass a string function name expecting it to fire
+Shape::make()->where('column', 'auth'); // 'auth' is now treated as a literal value
+</code-snippet>
+@endverbatim
+
+The same applies to entity IDs passed to `->one()` / `->many()`. Closures are invoked **exactly once per resolve** — don't depend on observable double-invocation.
+
+### Aggregates Batch Automatically by Constraint
+
+Multiple aggregates of the same model with the same `where` constraints collapse into a single SQL `SELECT` automatically. As of 0.5.0, aggregates with **different** constraints are also grouped — one query per constraint signature instead of one query per aggregate. No user action required, but it's worth knowing when designing dashboards:
+
+@verbatim
+<code-snippet name="Aggregate grouping" lang="php">
+Requirements::make()
+    // These two share constraints → 1 query
+    ->count('total', User::class)
+    ->sum('totalAge', User::class, 'age')
+
+    // These two share different constraints → 1 query
+    ->count('adults', User::class, Shape::make()->where('age', '>=', 18))
+    ->sum('adultAge', User::class, 'age', Shape::make()->where('age', '>=', 18));
+
+// Total: 2 queries (was 4 before 0.5.0)
+</code-snippet>
+@endverbatim
+
+### Eager-Load Merge (Opt-In)
+
+When two batched entity lookups (`one()` / `many()`) for the same model request the same relation with **different** shapes, the default behavior is last-write-wins — the second alias overwrites the first. Set the config flag to merge them instead (union of fields and constraints, max of limits):
+
+```php
+// config/dataproxy.php
+'query' => [
+    'merge_shared_eager_loads' => true,
+],
+```
+
+Or via env: `DATAPROXY_MERGE_SHARED_EAGER_LOADS=true`. Default is `false` to preserve historical behavior.
+
 ### Anti-Patterns
 
 - Don't use DataProxy for single simple queries
 - Don't fetch data you won't use
 - Don't skip field selection on large tables
 - Don't nest relations beyond 3 levels without consideration
+- Don't pass plain string function names as constraint values expecting them to be invoked — use a `Closure`
